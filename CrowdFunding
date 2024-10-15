@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.26;
+
+contract CrowdFunding {
+
+    //受益人
+    address immutable public beneficiary;
+    //筹集得目标资金
+    uint256 immutable public fundingGoal;
+    //当前得资金
+    uint256 public fundingAmount;
+    //筹集资金map
+    mapping(address => uint256) private funders;
+
+    //记录筹集人是否插入到list
+    mapping(address => bool) private fundersInserted;
+
+    //筹集人列表
+    address[] public dundersKey;
+
+    //是否正在筹集资金
+    bool public AVAILABLED = true;
+
+    constructor(address _beneficiary, uint256 _fundingGoal) {
+        beneficiary = _beneficiary;
+        fundingGoal = _fundingGoal;
+    }
+
+    //资助函数
+    function contribute() external payable  {
+        //是否正在筹集
+        require(AVAILABLED, "CrowdFunding is closed");
+        //判断是否超过目标资金
+        uint256 nowFunders = fundingAmount + msg.value;
+        //定义多余得资金
+        uint256 refundAmount = 0;
+        if(nowFunders > fundingGoal){
+            refundAmount = nowFunders - fundingGoal;
+            funders[msg.sender] += (msg.value - refundAmount);
+            fundingAmount += (msg.value - refundAmount);
+        }else{
+            funders[msg.sender] += msg.value;
+            fundingAmount += msg.value;
+        }
+        //插入筹集人列表
+        if(!fundersInserted[msg.sender]){
+            fundersInserted[msg.sender] = true;
+            dundersKey.push(msg.sender);
+        }
+
+        //退还多余资金
+        if(refundAmount > 0){
+            payable(msg.sender).transfer(refundAmount);
+        }
+        
+    }
+    
+
+    //关闭函数
+    function close() external returns (bool) {
+        require(AVAILABLED, "is close");
+        require(fundingAmount == fundingGoal, "fundingAmount not equal fundingGoal");
+        AVAILABLED = false;
+        uint256 amount = fundingAmount;
+        fundingAmount = 0;
+        //转账
+        payable(beneficiary).transfer(amount);
+        return true;
+    }
+
+    //查询筹集人得数量
+    function getDundersKeySize() external view returns (uint256) {
+        return dundersKey.length;
+    }
+}
